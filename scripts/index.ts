@@ -1,31 +1,69 @@
-import { loadEnvConfig } from '@next/env';
-import { createClient } from '@supabase/supabase-js';
-import { PDFLoader } from '@langchain/community/document_loaders/fs/pdf';
+import { supabaseClient } from '@/utils/supabase-client';
+import { CheerioWebBaseLoader } from '@langchain/community/document_loaders/web/cheerio';
 import { OpenAIEmbeddings } from '@langchain/openai';
+import { SupabaseClient } from '@supabase/supabase-js';
+import { Document } from 'langchain/document';
 import { SupabaseVectorStore } from '@langchain/community/vectorstores/supabase';
-loadEnvConfig('');
-const privateKey = process.env.SUPABASE_PRIVATE_KEY;
-if (!privateKey) throw new Error(`Expected env var SUPABASE_PRIVATE_KEY`);
 
-const url = process.env.SUPABASE_URL;
-if (!url) throw new Error(`Expected env var SUPABASE_URL`);
+function cleanPageContent(doc: any) {
+  let { pageContent } = doc;
 
-const key = process.env.PUBLIC_OPENAI_API_KEY;
-const embeddings = new OpenAIEmbeddings({ apiKey: key });
+  // Step 1: Replace multiple newline characters with a single newline
+  pageContent = pageContent.replace(/\n+/g, '\n');
 
-(async () => {
-  const client = createClient(url, privateKey);
+  // Step 2: Split content into lines, trim each line, and remove empty lines
+  const lines = pageContent
+    .split('\n')
+    .map((line: string) => line.trim())
+    .filter((line: string | any[]) => line.length > 0);
 
-  const loader = new PDFLoader('./sunniekapar.pdf'); // i can make this a buffer or directory loader later to be able to load multiple documents
+  // Step 3: Join the cleaned lines back into a single string
+  const cleanedContent = lines.join(' ');
 
-  const docs = await loader.load();
+  // Return the cleaned document
+  return {
+    ...doc,
+    pageContent: cleanedContent,
+  };
+}
 
-  const pages = docs.map((doc) => doc.pageContent);
-  const metadata = docs.map((doc) => doc.metadata);
+async function extractDataFromUrl(url: string): Promise<Document[]> {
+  try {
+    const loader = new CheerioWebBaseLoader(url);
+    const docs = await loader.load();
+    return docs;
+  } catch (error: any) {
+    console.error('Error extracting data from a single url', error);
+    return [];
+  }
+}
 
-  await SupabaseVectorStore.fromTexts(pages, metadata, embeddings, {
-    client,
+// I should probably clean up the data before sending it through openai api to reduce tokens...
+const url = 'https://uwaterloo.ca/about/facts';
+
+async function embedDocuments(
+  client: SupabaseClient,
+  docs: Document[],
+  embeddings: OpenAIEmbeddings
+) {
+  console.log('Started embedding documents...');
+  await SupabaseVectorStore.fromDocuments(docs, embeddings, {
+    client: client,
     tableName: 'documents',
-    queryName: 'match_documents_pdf', // may have to change the name later
   });
-})();
+  console.log('Finished embeddings documents...');
+}
+
+(async (url: string) => {
+  try {
+    const rawDocs = await extractDataFromUrl(url);
+
+    await embedDocuments(
+      supabaseClient,
+      rawDocs,
+      new OpenAIEmbeddings({ apiKey: process.env.PUBLIC_OPENAI_API_KEY })
+    );
+  } catch (error) {
+    console.error('Error embedding the documents');
+  }
+})(url);

@@ -1,39 +1,109 @@
-import React from 'react';
-import Image from 'next/image';
-import send from '../public/send.svg';
+'use client';
+import { Input } from '@/components/ui/input';
+import { Button } from '@/components/ui/button';
+import { useChat } from 'ai/react';
+import { useEffect, useRef } from 'react';
+
 export default function page() {
+  const messagesRef = useRef<HTMLUListElement>(null);
+  const { messages, input, handleInputChange, handleSubmit } = useChat({
+    onError: (e) => console.error(e),
+    initialMessages: [
+      {
+        id: '1',
+        content: 'This would be a chat from the bot',
+        role: 'function',
+      },
+      {
+        id: '1',
+        content: 'This would be the chat from a user',
+        role: 'user',
+      },
+    ],
+  });
+
+  useEffect(() => {
+    const chatBox = messagesRef.current;
+    console.log(chatBox);
+    // When the page re-renders, it will go to the bottom of the chat history
+    if (chatBox) chatBox.scrollTop = chatBox.scrollHeight;
+  }, [messages]);
+
   return (
     <>
-      <Image
-        src="/background2.png"
-        alt="background-image"
-        quality={100}
-        fill={true}
-      />
+      <main className="flex flex-col w-full h-screen max-h-dvh overflow-clip relative">
+        {/* Background */}
+        <div className="absolute bottom-0 left-[-20%] right-0 top-[-10%] h-[500px] w-[500px] rounded-full bg-[radial-gradient(circle_farthest-side,rgba(187,4,43,.15),rgba(255,255,255,0))]"></div>
+        <div className="absolute bottom-0 right-[-20%] top-[-10%] h-[500px] w-[500px] rounded-full bg-[radial-gradient(circle_farthest-side,rgba(187,4,43,.15),rgba(255,255,255,0))]"></div>
 
-      <main className="container mx-auto h-screen max-w-2xl my-auto relative z-10 py-8 space-y-8 px-4 lg:px-0">
-        <section className=" h-5/6 rounded-md bg-zinc-50 p-2 shadow-lg">
-          This is where the chats will be
+        {/* Header */}
+        <header className="p-4 mx-auto max-w-3xl">
+          <h1 className="font-semibold text-3xl"></h1>
+        </header>
+
+        {/* Messages */}
+        <section className="container flex flex-col px-0 pb-4 mx-auto max-w-3xl flex-grow">
+          <ul
+            ref={messagesRef}
+            className="h-1 p-4 flex-grow  rounded-lg overflow-y-auto flex flex-col gap-4"
+          >
+            {messages.map((message, index) => (
+              <div key={index}>
+                {message.role === 'user' ? (
+                  <li key={message.id} className="flex flex-row-reverse">
+                    <div className="rounded-full rounded-br-none px-4 p-2 bg-secondary-foreground/90">
+                      <p className='text-background text-sm'>{message.content}</p>
+                    </div>
+                  </li>
+                ) : (
+                  <li key={message.id} className="flex flex-row">
+                    <div className="rounded-xl rounded-bl-none px-4 p-2 bg-background/90">
+                      <p className='text-sm'>{message.content}</p>
+                    </div>
+                  </li>
+                )}
+              </div>
+            ))}
+          </ul>
         </section>
-        <form className="relative w-full shadow">
-          <input
-            className="flex h-10 w-full rounded-md border border-zinc-200 bg-zinc-50 px-3 py-2 text-sm ring-offset-zinc-50 
-            file:border-0 file:bg-transparent file:text-sm file:font-medium 
-            placeholder:text-zinc-500 
-            focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-zinc-950 focus-visible:ring-offset-2 
-            disabled:cursor-not-allowed disabled:opacity-50 p-2 pr-6"
-            placeholder="Type here..."
-          />
-          <button className="absolute top-0 right-0 bg-transparent h-full aspect-square">
-            <Image
-              priority
-              src={send}
-              alt="Send message"
-              width={18}
-              height={18}
-            />
-          </button>
-        </form>
+
+        {/* Query input */}
+        <section className="p-4">
+          <form
+            onSubmit={handleSubmit}
+            className="flex w-full max-w-3xl mx-auto items-center"
+          >
+            <div className="relative w-full">
+              <Input
+                placeholder="What is the University of Waterloo known for?"
+                value={input}
+                onChange={handleInputChange}
+              />
+              <Button
+                className="absolute right-0 top-0 z-10 rounded-full"
+                type="submit"
+                size="icon"
+                variant="ghost"
+              >
+                <svg
+                  xmlns="http://www.w3.org/2000/svg"
+                  width="16"
+                  height="16"
+                  viewBox="0 0 24 24"
+                  fill="none"
+                  stroke="currentColor"
+                  strokeWidth="2"
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                  className="lucide lucide-send-horizontal"
+                >
+                  <path d="m3 3 3 9-3 9 19-9Z" />
+                  <path d="M6 12h16" />
+                </svg>
+              </Button>
+            </div>
+          </form>
+        </section>
       </main>
     </>
   );
