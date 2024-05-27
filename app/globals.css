@@ -84,4 +84,8 @@
   ::-webkit-scrollbar-thumb {
     @apply bg-secondary-foreground rounded-full w-1;
   }
+
+  .markdown a {
+    @apply font-bold text-red-500
+  }
 }

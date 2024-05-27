@@ -29,7 +29,9 @@ function cleanPageContent(doc: any) {
 
 async function extractDataFromUrl(url: string): Promise<Document[]> {
   try {
-    const loader = new CheerioWebBaseLoader(url);
+    const loader = new CheerioWebBaseLoader(url, {
+      selector: 'div.ch,div.bg,div.fz,div.ga,div.gb,div.gc',
+    });
     const docs = await loader.load();
     return docs;
   } catch (error: any) {
@@ -39,7 +41,7 @@ async function extractDataFromUrl(url: string): Promise<Document[]> {
 }
 
 // I should probably clean up the data before sending it through openai api to reduce tokens...
-const url = 'https://uwaterloo.ca/about/facts';
+const url = 'https://medium.com/@gargg/how-to-create-your-own-chatbot-in-2023-66c33bb6da07';
 
 async function embedDocuments(
   client: SupabaseClient,
@@ -57,7 +59,7 @@ async function embedDocuments(
 (async (url: string) => {
   try {
     const rawDocs = await extractDataFromUrl(url);
-
+    console.log(rawDocs);
     await embedDocuments(
       supabaseClient,
       rawDocs,

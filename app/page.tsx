@@ -3,28 +3,16 @@ import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
 import { useChat } from 'ai/react';
 import { useEffect, useRef } from 'react';
+import ReactMarkdown from 'react-markdown';
 
 export default function page() {
   const messagesRef = useRef<HTMLUListElement>(null);
   const { messages, input, handleInputChange, handleSubmit } = useChat({
     onError: (e) => console.error(e),
-    initialMessages: [
-      {
-        id: '1',
-        content: 'This would be a chat from the bot',
-        role: 'function',
-      },
-      {
-        id: '1',
-        content: 'This would be the chat from a user',
-        role: 'user',
-      },
-    ],
   });
 
   useEffect(() => {
     const chatBox = messagesRef.current;
-    console.log(chatBox);
     // When the page re-renders, it will go to the bottom of the chat history
     if (chatBox) chatBox.scrollTop = chatBox.scrollHeight;
   }, [messages]);
@@ -47,18 +35,34 @@ export default function page() {
             ref={messagesRef}
             className="h-1 p-4 flex-grow  rounded-lg overflow-y-auto flex flex-col gap-4"
           >
+            {messages.length === 0 && (
+              <li className="flex flex-row">
+                <div className="rounded-xl rounded-bl-none px-4 p-2 bg-background/90">
+                  <p className="text-sm">
+                    👋 You can ask me any question about the University of
+                    Waterloo and I'll try my best to answer!
+                  </p>
+                </div>
+              </li>
+            )}
             {messages.map((message, index) => (
               <div key={index}>
                 {message.role === 'user' ? (
                   <li key={message.id} className="flex flex-row-reverse">
                     <div className="rounded-full rounded-br-none px-4 p-2 bg-secondary-foreground/90">
-                      <p className='text-background text-sm'>{message.content}</p>
+                      <p className="text-background text-sm">
+                        {message.content}
+                      </p>
                     </div>
                   </li>
                 ) : (
                   <li key={message.id} className="flex flex-row">
                     <div className="rounded-xl rounded-bl-none px-4 p-2 bg-background/90">
-                      <p className='text-sm'>{message.content}</p>
+                      <p className="text-sm">
+                        <ReactMarkdown className="markdown">
+                          {message.content}
+                        </ReactMarkdown>
+                      </p>
                     </div>
                   </li>
                 )}
