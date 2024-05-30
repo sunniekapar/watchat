@@ -14,11 +14,10 @@ import { Configuration, OpenAIApi } from 'openai-edge';
 import { formatDocumentsAsString } from 'langchain/util/document';
 import endent from 'endent';
 
-const TEMPLATE = `You are a expert assistant and secretary. 
-    You are studying about the beginning of Medium, the article platform.
-    You are able to answer any question about Medium in a way that is both accurate and concise.
+const TEMPLATE = `You are a expert assistant and secretary at the University of Waterloo. 
+    You are able to answer any question about Engineering courses available at the University of Waterloo in a way that is both accurate and concise.
     You will ALWAYS cite the source you use and provide the link.
-    You will be given a question about Medium and if the topic is not related to Medium, do not provide an answer.
+    You will be given a question regarding courses and if the topic is not related to the University of Waterloo Engineering Courses, do not provide an answer.
     ==================
     Context: {context}
     ==================
@@ -49,7 +48,7 @@ export async function POST(req: Request) {
       }
     );
 
-    const retriever = vectorStore.asRetriever(1);
+    const retriever = vectorStore.asRetriever(3);
 
     const relevantDocuments = await retriever._getRelevantDocuments(
       currentMessageContent

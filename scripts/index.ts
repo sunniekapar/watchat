@@ -4,35 +4,64 @@ import { OpenAIEmbeddings } from '@langchain/openai';
 import { SupabaseClient } from '@supabase/supabase-js';
 import { Document } from 'langchain/document';
 import { SupabaseVectorStore } from '@langchain/community/vectorstores/supabase';
+import { RecursiveCharacterTextSplitter } from 'langchain/text_splitter';
+// import { urls } from '@/config';
+import * as fs from 'fs/promises';
+import * as cheerio from 'cheerio';
+import { PuppeteerWebBaseLoader } from '@langchain/community/document_loaders/web/puppeteer';
 
-function cleanPageContent(doc: any) {
-  let { pageContent } = doc;
+export const urls: string[] = [
+  'https://uwaterloo.ca/academic-calendar/undergraduate-studies/catalog#/programs/HyrkyRRi3',
+  'https://uwaterloo.ca/academic-calendar/undergraduate-studies/catalog#/programs/rkMSJ1AAin',
+  'https://uwaterloo.ca/academic-calendar/undergraduate-studies/catalog#/programs/S1bSkJRAjh',
+  'https://uwaterloo.ca/academic-calendar/undergraduate-studies/catalog#/programs/BybwJ10Ri3',
+  // 'https://uwaterloo.ca/academic-calendar/undergraduate-studies/catalog#/programs/rkgD1yRAjn',
+  // 'https://uwaterloo.ca/academic-calendar/undergraduate-studies/catalog#/programs/B1lv11RCsh',
+  // 'https://uwaterloo.ca/academic-calendar/undergraduate-studies/catalog#/programs/H1jJ1C0s2',
+  // 'https://uwaterloo.ca/academic-calendar/undergraduate-studies/catalog#/programs/HkzsJ1CRsh',
+  // 'https://uwaterloo.ca/academic-calendar/undergraduate-studies/catalog#/programs/ryAk10Rin',
+  // 'https://uwaterloo.ca/academic-calendar/undergraduate-studies/catalog#/programs/Hk-A1y0Cj2',
+  // 'https://uwaterloo.ca/academic-calendar/undergraduate-studies/catalog#/programs/HkW0yyA0s3',
+  // 'https://uwaterloo.ca/academic-calendar/undergraduate-studies/catalog#/programs/H1zle10Cs3',
+  // 'https://uwaterloo.ca/academic-calendar/undergraduate-studies/catalog#/programs/SJgggJRRoh',
+];
 
-  // Step 1: Replace multiple newline characters with a single newline
-  pageContent = pageContent.replace(/\n+/g, '\n');
+async function chunkDocuments(documents: Document[]): Promise<Document[]> {
+  const textSplitter = new RecursiveCharacterTextSplitter({
+    chunkOverlap: 200,
+    chunkSize: 2000,
+  });
+  return await textSplitter.splitDocuments(documents);
+}
 
-  // Step 2: Split content into lines, trim each line, and remove empty lines
-  const lines = pageContent
-    .split('\n')
-    .map((line: string) => line.trim())
-    .filter((line: string | any[]) => line.length > 0);
+async function scrapeDataFromUrl(url: string): Promise<Document[]> {
+  try {
+    const loader = new PuppeteerWebBaseLoader(url, {
+      launchOptions: {
+        headless: false,
+      },
+      gotoOptions: {
+        waitUntil: 'networkidle0',
+      },
+    });
+    const docs = await loader.load();
+    const uncleanedContent = docs[0].pageContent;
 
-  // Step 3: Join the cleaned lines back into a single string
-  const cleanedContent = lines.join(' ');
+    const $ = cheerio.load(uncleanedContent);
+    const content = $('#__KUALI_TLP').text();
 
-  // Return the cleaned document
-  return {
-    ...doc,
-    pageContent: cleanedContent,
-  };
+    return [{ ...docs[0], pageContent: content }];
+  } catch (error) {
+    console.error('Error extracting data from a single url', error);
+    return [];
+  }
 }
 
 async function extractDataFromUrl(url: string): Promise<Document[]> {
   try {
-    const loader = new CheerioWebBaseLoader(url, {
-      selector: 'div.ch,div.bg,div.fz,div.ga,div.gb,div.gc',
-    });
+    const loader = new CheerioWebBaseLoader(url, { timeout: 5000 });
     const docs = await loader.load();
+    console.log(docs);
     return docs;
   } catch (error: any) {
     console.error('Error extracting data from a single url', error);
@@ -40,8 +69,23 @@ async function extractDataFromUrl(url: string): Promise<Document[]> {
   }
 }
 
-// I should probably clean up the data before sending it through openai api to reduce tokens...
-const url = 'https://medium.com/@gargg/how-to-create-your-own-chatbot-in-2023-66c33bb6da07';
+async function extractDataFromUrls(urls: string[]): Promise<Document[]> {
+  console.log('Started extracting data from urls...');
+  const documents: Document[] = [];
+  try {
+    for (const url of urls) {
+      const doc = await scrapeDataFromUrl(url);
+      documents.push(...doc);
+    }
+    const json = JSON.stringify(documents);
+    await fs.writeFile('uw_courses.json', json);
+    console.log('JSON file containing UW courses saved');
+    return documents;
+  } catch (error) {
+    console.error('Error extracting data from multiple urls', error);
+    return documents;
+  }
+}
 
 async function embedDocuments(
   client: SupabaseClient,
@@ -56,16 +100,18 @@ async function embedDocuments(
   console.log('Finished embeddings documents...');
 }
 
-(async (url: string) => {
+(async (urls: string[]) => {
   try {
-    const rawDocs = await extractDataFromUrl(url);
-    console.log(rawDocs);
+    const rawDocs = await extractDataFromUrls(urls);
+
+    const docs = await chunkDocuments(rawDocs);
+
     await embedDocuments(
       supabaseClient,
-      rawDocs,
+      docs,
       new OpenAIEmbeddings({ apiKey: process.env.PUBLIC_OPENAI_API_KEY })
     );
   } catch (error) {
-    console.error('Error embedding the documents');
+    console.error('Error embedding the documents', error);
   }
-})(url);
+})(urls);
