@@ -12,9 +12,9 @@ import { PuppeteerWebBaseLoader } from '@langchain/community/document_loaders/we
 
 export const urls: string[] = [
   'https://uwaterloo.ca/academic-calendar/undergraduate-studies/catalog#/programs/HyrkyRRi3',
-  'https://uwaterloo.ca/academic-calendar/undergraduate-studies/catalog#/programs/rkMSJ1AAin',
-  'https://uwaterloo.ca/academic-calendar/undergraduate-studies/catalog#/programs/S1bSkJRAjh',
-  'https://uwaterloo.ca/academic-calendar/undergraduate-studies/catalog#/programs/BybwJ10Ri3',
+  // 'https://uwaterloo.ca/academic-calendar/undergraduate-studies/catalog#/programs/rkMSJ1AAin',
+  // 'https://uwaterloo.ca/academic-calendar/undergraduate-studies/catalog#/programs/S1bSkJRAjh',
+  // 'https://uwaterloo.ca/academic-calendar/undergraduate-studies/catalog#/programs/BybwJ10Ri3',
   // 'https://uwaterloo.ca/academic-calendar/undergraduate-studies/catalog#/programs/rkgD1yRAjn',
   // 'https://uwaterloo.ca/academic-calendar/undergraduate-studies/catalog#/programs/B1lv11RCsh',
   // 'https://uwaterloo.ca/academic-calendar/undergraduate-studies/catalog#/programs/H1jJ1C0s2',
@@ -28,13 +28,13 @@ export const urls: string[] = [
 
 async function chunkDocuments(documents: Document[]): Promise<Document[]> {
   const textSplitter = new RecursiveCharacterTextSplitter({
-    chunkOverlap: 200,
-    chunkSize: 2000,
+    chunkOverlap: 50,
+    chunkSize: 400,
   });
   return await textSplitter.splitDocuments(documents);
 }
 
-async function scrapeDataFromUrl(url: string): Promise<Document[]> {
+async function extractDataFromUrl(url: string): Promise<Document[]> {
   try {
     const loader = new PuppeteerWebBaseLoader(url, {
       launchOptions: {
@@ -57,24 +57,12 @@ async function scrapeDataFromUrl(url: string): Promise<Document[]> {
   }
 }
 
-async function extractDataFromUrl(url: string): Promise<Document[]> {
-  try {
-    const loader = new CheerioWebBaseLoader(url, { timeout: 5000 });
-    const docs = await loader.load();
-    console.log(docs);
-    return docs;
-  } catch (error: any) {
-    console.error('Error extracting data from a single url', error);
-    return [];
-  }
-}
-
 async function extractDataFromUrls(urls: string[]): Promise<Document[]> {
   console.log('Started extracting data from urls...');
   const documents: Document[] = [];
   try {
     for (const url of urls) {
-      const doc = await scrapeDataFromUrl(url);
+      const doc = await extractDataFromUrl(url);
       documents.push(...doc);
     }
     const json = JSON.stringify(documents);
